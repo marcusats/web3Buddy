@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  server:
+    container_name: fastapi-server
+    build:
+      context: ./server  
+    command: uvicorn app.server:app --host 0.0.0.0 --port 8000  
+    ports:
+      - "8000:8000"   
+    volumes:
+      - ./server:/app  
+    depends_on:
+      - client   
+
+  client:
+    container_name: nextjs-app
+    build:
+      context: ./client   
+    command: npm run dev   
+    ports:
+      - "3000:3000"  
+    volumes:
+      - ./client:/app   
+    working_dir: /app  
