@@ -38,7 +38,7 @@ const Providers: React.FC<ProvidersProps> = ({ children }) => {
 
     const config = getDefaultConfig({
         appName: 'Web3Buddy',
-        projectId:"770f6cefc0cfc4678db88813ffd679e1",
+        projectId: walletId,
         chains: [mainnet, polygon, optimism, arbitrum, base],
     });
     
