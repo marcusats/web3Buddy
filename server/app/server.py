@@ -73,6 +73,8 @@ question_rewriter = grader.create_question_rewriter()
 action_evaluator = grader.create_action_evaluator()
 
 execute_evaluator = grader.create_execution_evaluator()
+create_params_evaluator = grader.create_params_evaluator()
+paramsProvidedConfidence = grader.paramsProvidedConfidence()
 
 ## Creating the Workflow
 # Initiating the Graph
@@ -91,7 +93,7 @@ graph_nodes = GraphNodes(
 )
 
 # Create an instance of the EdgeGraph class
-edge_graph = EdgeGraph(hallucination_grader, code_evaluator, action_evaluator, execute_evaluator)
+edge_graph = EdgeGraph(hallucination_grader, code_evaluator, action_evaluator, execute_evaluator,create_params_evaluator, paramsProvidedConfidence)
 
 workflow.add_node("retrieveInfura", graph_nodes.retrieveInfura)  # retrieve documents for Infura
 workflow.add_node("retrieveSolidity", graph_nodes.retrieveSolidity)  # retrieve documents for Solidity
@@ -105,6 +107,9 @@ workflow.add_node("execution", graph_nodes.execution)  # Execute cURL command
 workflow.add_node("path_to_execution", graph_nodes.path_to_execution)  # Guide to execution
 workflow.add_node("command_interpreter", graph_nodes.execution_interpreter)  # Interpret the command
 workflow.add_node("ending", graph_nodes.ending)  # End the conversation
+workflow.add_node("params_needed", graph_nodes.params_needed)  # Check if params are needed
+workflow.add_node("params_inquiry", graph_nodes.params_inquiry)
+workflow.add_node("adding_params", graph_nodes.adding_params)
 
 workflow.set_entry_point("evaluator")
 
@@ -160,10 +165,28 @@ workflow.add_conditional_edges(
     },
 )
 
-workflow.add_edge("transform_execution", "execution")
+
+
+workflow.add_conditional_edges(
+    "transform_execution",
+    edge_graph.paramsCheck,
+    {
+        "params-needed": "params_needed",
+        "no-params-needed": "execution",
+    }
+)
+workflow.add_conditional_edges(
+    "params_needed",
+    edge_graph.paramsProvided, 
+    {
+        "params-provided": "adding_params", 
+        "params-not-provided": "params_inquiry",
+    }
+)
+workflow.add_edge("adding_params", "execution")
 workflow.add_edge("execution", "command_interpreter")
 workflow.add_edge("command_interpreter", "ending")
-
+workflow.add_edge("params_inquiry", END)
 # Compile the workflow
 chain = workflow.compile()
 

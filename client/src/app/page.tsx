@@ -101,8 +101,6 @@ export default function HomePage() {
             </motion.div>
           )}
         </motion.div>
-
-        {/* Footer Animation */}
         <motion.footer
           className="mt-8 text-center"
           initial={{ opacity: 0, y: 50 }}
@@ -111,16 +109,20 @@ export default function HomePage() {
         >
           <p className="text-sm text-white">Created by Marcos Salazar</p>
           <div className="flex justify-center space-x-4 mt-2">
-            {["GitHub Repo", "Website", "LinkedIn"].map((link, index) => (
+            {[
+              { name: "GitHub Repo", url: "https://github.com/marcusats/web3Buddy" },
+              { name: "Website", url: "https://marcosalazar.xyz" },
+              { name: "LinkedIn", url: "https://www.linkedin.com/in/marcos-aurelio-salazar-torres-mast/" }
+            ].map((link, index) => (
               <motion.a
                 key={index}
-                href="#"
+                href={link.url}
                 className="text-web3BuddyPurple hover:underline"
                 target="_blank"
                 rel="noopener noreferrer"
                 whileHover={{ scale: 1.1, transition: { duration: 0.3 } }}
               >
-                {link}
+                {link.name}
               </motion.a>
             ))}
           </div>

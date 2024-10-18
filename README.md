@@ -65,7 +65,7 @@ UPSTASH_REDIS_REST_TOKEN="your-upstash-redis-token"
 
 ## Running the Application
 
-### Method 1: Running in Separate Terminals
+###  Running in Separate Terminals
 
 #### Client (Next.js)
 
@@ -94,20 +94,7 @@ UPSTASH_REDIS_REST_TOKEN="your-upstash-redis-token"
    ```bash
    python3 app/server.py
    ```
-
-### Method 2: Using Docker Compose
-
-If you prefer using Docker to manage both the client and server:
-
-1. Make sure Docker is installed and running on your machine.
-
-2. In the root of the project directory, run:
-
-   ```bash
-   docker-compose up
-   ```
-
-This will build the Docker images and start both the client and server as containers, with their respective environment variables loaded from the `.env` files.
+ 
 
 ## Project Structure
 

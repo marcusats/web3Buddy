@@ -100,7 +100,7 @@ class GraphNodes:
             "chat_history": chat_history,
             "input": question,  # Update input with rewritten question
             "documents": [],
-            "generation": rewritten_question,
+            "generation": question,
             "userId": self.userId,
             "convId": self.conv_id
         }
@@ -236,13 +236,14 @@ class GraphNodes:
         print("---CHECK DOCUMENT RELEVANCE TO QUESTION---")
         question = state["input"]
         documents = state["documents"]
+        generation = state.get("generation", "")
         print(f"Question: {question}")
         print(f"Documents: {documents}")
 
         # Score each document
         filtered_docs = []
         for d in documents:
-            score = self.retrieval_grader.invoke({"input": question, "document": d.page_content})
+            score = self.retrieval_grader.invoke({"input": question, "document": d.page_content, "rewrited_question":generation } )
             grade = score["score"]
             if grade == "yes":
                 print("---GRADE: DOCUMENT RELEVANT---")
@@ -266,10 +267,12 @@ class GraphNodes:
         print("---TRANSFORM QUERY---")
         question = state["input"]
         documents = state["documents"]
+        print("-----transform query-----")
 
         # Re-write question
         better_question = self.question_rewriter.invoke({"question": question})
-        return {"documents": documents, "input": better_question}
+        print(f"Better Question: {better_question}")
+        return {"documents": documents, "input": question, "generation": better_question}
     
     def transform_execution(self, state):
         """
@@ -442,6 +445,8 @@ class GraphNodes:
         
         }
     
+
+    
     def execution_interpreter(self, state):
         """
         Interprets the output of the cURL command execution and provides a concise response.
@@ -498,6 +503,98 @@ class GraphNodes:
                 "generation": interpretation_output,
         }
     
+    def params_needed(self, state):
+        """
+        Guides the workflow into the 'params needed' conditional edge by analyzing the cURL command 
+        and identifying which parameters are required for its execution.
+
+        Args:
+            state (dict): The current graph state, containing the cURL command, related documents, and the user's input question.
+
+        Returns:
+            dict: The updated state indicating the parameters needed for the cURL command, with parameter names and types.
+        """
+        
+        print("---PARAMS NEEDED---")
+        return {
+            "chat_history": state.get("chat_history", []),
+            "input": state.get("input"),
+            "documents": state.get("documents", []),
+        }
+    def params_inquiry(self, state):
+        """ 
+        Inquires about the missing parameters for the cURL command execution.
+
+        Args:
+            state (dict): The current graph state, containing the cURL command, related documents, and the user's input question.
+
+        Returns:
+            dict: The updated state indicating the parameters needed for the cURL command, with parameter names and types.
+
+        """
+        command_output = state["generation"]
+        documents = state.get("documents", [])
+        input_question = state["input"]
+
+        # Define a prompt that interprets the cURL command, identifies parameters, and provides a structured response
+        interpret_prompt = PromptTemplate(
+            template="""
+            <|begin_of_text|><|start_header_id|>system<|end_header_id|>
+            Your task is to analyze the provided cURL command and identify which parameters are required for its execution. 
+            Specifically, you will:
+            
+            1. Review the cURL command and check if there is a method call (e.g., "eth_call").
+            2. Identify if parameters such as `address`, `block`, or others are required based on the method call.
+            3. Review the provided documents to see if the method mentioned in the cURL command has any specific parameters that are necessary.
+            4. Provide a structured response in the following format:
+            
+            {{
+            "input": "{input_question}",                # The question or input that led to the cURL command
+            "content": "A brief description of the needed parameters",  # Explanation of the parameters
+            "params": {{
+                "param_name_1": "param_type_1",         # Param name and type (string, bool, int, etc.)
+                "param_name_2": "param_type_2"
+            }}
+            }}
+            
+            DO NOT ADD MARKDOWN NOTATION ```json , PLAIN OBJECT 
+            The cURL command is provided below:
+            {generation}
+
+            The question that led to this cURL command is: {input_question}
+
+            Additionally, consider the following documents which may provide context:
+            {documents}
+
+            Ignore any references to API keys and focus only on relevant execution parameters such as `address`, `block`, `data`, etc.
+
+            <|eot_id|>
+            <|start_header_id|>user<|end_header_id|>
+            Please analyze the cURL command, check for method calls, and identify the required parameters for execution. Provide the structured response with parameter names and types.
+            <|eot_id|>
+            <|start_header_id|>assistant<|end_header_id|>
+            """,
+            input_variables=["generation", "documents", "input_question"]
+        )
+
+        # Invoke the interpretation prompt to analyze the cURL command and extract the needed parameters
+        interpretation = interpret_prompt | self.llm | StrOutputParser()
+
+        # Invoke the model with the command, documents, and input question to get the parameter analysis
+        interpretation_output = interpretation.invoke({
+            "generation": command_output, 
+            "documents": documents, 
+            "input_question": input_question
+        })
+
+        print("---PARAMS INQUIRY---")
+        return {
+            "chat_history": state.get("chat_history", []),
+            "input": state.get("input"),
+            "documents": state.get("documents", []),
+            "generation": interpretation_output,  # This will return the structured output with param names and types
+        }
+
     def ending(self, state):
         """
         The final node in the graph that ends the conversation.
@@ -526,4 +623,80 @@ class GraphNodes:
             "documents": state.get("documents", []),
             "generation": state.get("generation"),
         }
+    
+    def adding_params(self, state):
+        """
+        Adds the provided parameters to the cURL command by replacing placeholders or empty 'params' arrays with actual values.
+        Args:
+            state (dict): The current graph state, containing the cURL command, input, and documents. The input contains the parameters needed for execution.
 
+        Returns:
+            str: The updated cURL command ready for execution.
+        """
+        
+        command_output = state["generation"]  # cURL command template
+        input_question = state["input"]  # Input question, which includes params
+        documents = state.get("documents", [])  # Any supporting documents for context
+
+        # Define the prompt to add missing parameters into the command
+        add_params_prompt = PromptTemplate(
+            template="""
+            <|begin_of_text|><|start_header_id|>system<|end_header_id|>
+            Your task is to insert the provided parameters into the cURL command. The command has placeholders or an empty "params" array, 
+            and your task is to replace those with the actual values provided within the input.
+
+
+            RETURN THE PLAIN COMMAND, NO MARKDOWN  like this ```bash ```
+
+
+            Follow these steps:
+            1. Identify where the "params" array is located in the cURL command.
+            2. Replace the placeholders or empty values with the actual parameter values provided within the input.
+            3. Ensure that all provided parameters are correctly inserted into the command.
+
+            Example:
+
+            Input command:
+            curl -X POST https://mainnet.infura.io/v3/{{infuraKey}} 
+            -H "Content-Type: application/json" 
+            -d '{{"jsonrpc":"2.0","method":"eth_getBlockByHash","params": ["<BLOCK_HASH>", true],"id":1}}'
+
+            Parameters provided:
+            {{"params": ["0x12345abcde...", true]}}
+
+            Output:
+            curl -X POST https://mainnet.infura.io/v3/{{infuraKey}} 
+            -H "Content-Type: application/json" 
+            -d '{{"jsonrpc":"2.0","method":"eth_getBlockByHash","params": ["0x12345abcde...", true],"id":1}}'
+            
+            Your output must return only the updated cURL command.
+
+            <|eot_id|>
+            <|start_header_id|>context<|end_header_id|>
+            cURL Command: {generation}
+            Input (which contains the params): {input}
+            Documents for reference: {documents}
+
+            <|eot_id|>
+            <|start_header_id|>user<|end_header_id|>
+            Insert the provided parameters into the cURL command and return the complete cURL command for execution.
+            <|eot_id|>
+            <|start_header_id|>assistant<|end_header_id|>
+            """,
+            input_variables=["generation", "input", "documents"]
+        )
+        
+        # Invoke the prompt to add params to the command
+        add_params_interpreter = add_params_prompt | self.llm | StrOutputParser()
+        updated_curl_command = add_params_interpreter.invoke({
+            "generation": command_output, 
+            "input": input_question,  # Pass the input that contains the params
+            "documents": documents  # Pass documents for any additional context
+        })
+        
+        return {
+            "chat_history": state.get("chat_history", []),
+            "input": state.get("input"),
+            "documents": state.get("documents", []),
+            "generation": updated_curl_command  
+        }

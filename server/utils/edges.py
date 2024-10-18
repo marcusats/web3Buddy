@@ -1,11 +1,13 @@
 import json
 
 class EdgeGraph:
-    def __init__(self, hallucination_grader, code_evaluator, create_action_evaluator,create_execution_evaluator ):
+    def __init__(self, hallucination_grader, code_evaluator, create_action_evaluator,create_execution_evaluator, create_params_evaluator, paramsProvidedConfidence ):
         self.hallucination_grader = hallucination_grader
         self.code_evaluator = code_evaluator
         self.create_action_evaluator = create_action_evaluator
         self.create_execution_evaluator = create_execution_evaluator
+        self.create_params_evaluator = create_params_evaluator
+        self.paramsProvidedConfidence = paramsProvidedConfidence
 
     def tool_used(self, state):
         """
@@ -151,6 +153,7 @@ class EdgeGraph:
     def decide_to_execute(self, state):
         """
         Evaluates the user's question to decide if it involves executing an Infura command.
+        Uses a confidence score to assess how certain the system is about the decision to execute the command.
 
         Args:
             state (dict): The current graph state
@@ -158,15 +161,42 @@ class EdgeGraph:
         Returns:
             str: A string indicating the decision: "execute" or "no-execute".
         """
+        print("---DECISION TO EXECUTE---")
+        
         question = state["input"]
         generation = state["generation"]
-        documents = state["documents"]
-        decision = self.create_execution_evaluator.invoke({"question": question, "generation": generation, "documents": documents})
-        if decision == "execute":
-            print("---DECISION: EXECUTE---")
+        documents = state.get("documents", [])
+        
+        print(f"Determined documents: {documents}")
+        
+        # Get the decision with confidence score from the execution evaluator
+        decision_with_confidence = self.create_execution_evaluator.invoke({
+            "question": question, 
+            "generation": generation, 
+            "documents": documents
+        })
+        
+        print("--------DECISION---------")
+        print(f"Decision with confidence (raw): {decision_with_confidence}")
+        
+        # Parse the result into a JSON object
+        try:
+            decision_data = json.loads(decision_with_confidence)  # Parse the JSON string
+            confidence = decision_data.get("score", 0)  # Extract confidence score or default to 0
+        except json.JSONDecodeError as e:
+            print(f"Error parsing JSON: {e}")
+            confidence = 0  # Default to 0 in case of a parsing error
+
+        print(f"Confidence score: {confidence}")
+        
+        # Set a confidence threshold to decide when execution is needed
+        confidence_threshold = 0.6  # Example threshold
+
+        if confidence >= confidence_threshold:
+            print("---CONFIDENT: EXECUTE---")
             return "execute"
         else:
-            print("---DECISION: NO EXECUTE---")
+            print("---CONFIDENT: NO EXECUTE---")
             return "no-execute"
         
     def tool_direction(self, state):
@@ -188,4 +218,99 @@ class EdgeGraph:
         else:
             print("---DECISION: SOLIDITY---")
             return "solidity"
+        
+    
+    def paramsCheck(self, state):
+        """
+        Checks if the user's command requires additional parameters for execution and decides the next action based on the evaluation.
+        Incorporates a confidence score to assess how certain the system is about the decision.
+
+        Args:
+            state (dict): The current graph state
+
+        Returns:
+            str: The next node to call
+        """
+        print("---PARAMS CHECK---")
+        
+        question = state["input"]
+        generation = state["generation"]
+        documents = state.get("documents", [])
+        print(f"Determined documents: {documents}")
+        
+        # Get the decision with confidence score from the params evaluator
+        decision_with_confidence = self.create_params_evaluator.invoke({
+            "question": question, 
+            "curl_command": generation, 
+            "documents": documents
+        })
+        
+        print("--------DECISION---------")
+        print(f"Decision with confidence (raw): {decision_with_confidence}")
+        
+        # Parse the result into a JSON object
+        try:
+            decision_data = json.loads(decision_with_confidence)  # Parse the JSON string
+            confidence = decision_data.get("score", 0)  # Extract confidence score or default to 0
+        except json.JSONDecodeError as e:
+            print(f"Error parsing JSON: {e}")
+            confidence = 0  # Default to 0 in case of a parsing error
+
+        print(f"Confidence score: {confidence}")
+        
+        # Set a confidence threshold to decide when parameters are needed
+        confidence_threshold = 0.6  # Example threshold
+
+        if confidence >= confidence_threshold:
+            print("---CONFIDENT: PARAMS ARE NEEDED---")
+            return "params-needed"
+        else:
+            print("---CONFIDENT: NO PARAMS ARE NEEDED---")
+            return "no-params-needed"
+        
+    def paramsProvided(self, state):
+        """
+        Checks if the user likely provided the necessary parameters for execution based on the evaluation of the input.
+        Uses a confidence score to assess how certain the system is about the presence of parameters.
+
+        Args:
+            state (dict): The current graph state
+
+        Returns:
+            str: The next node to call ("params-provided" or "params-not-provided")
+        """
+        print("---PARAMS PROVIDED---")
+        
+        # Retrieve necessary state components
+        question = state["input"]
+        generation = state["generation"]
+        documents = state.get("documents", [])
+        
+        # Get the decision with confidence score from the params evaluator
+        decision_with_confidence = self.paramsProvidedConfidence.invoke({
+            "input": question,
+        })
+        
+        print("--------DECISION---------")
+        print(f"Decision with confidence (raw): {decision_with_confidence}")
+        # Parse the result into a JSON object
+        try:
+            decision_data = json.loads(decision_with_confidence)
+            confidence_score = decision_data.get("score", 0.0)  # Default to 0 if no score is present
+            print(f"Decision with confidence score: {confidence_score}")
+            
+            # Set a confidence threshold to decide when parameters are likely provided
+            confidence_threshold = 0.6  # Example threshold
+            
+            if confidence_score >= confidence_threshold:
+                print("---DECISION: PARAMS PROVIDED---")
+                return "params-provided"
+            else:
+                print("---DECISION: PARAMS NOT PROVIDED---")
+                return "params-not-provided"
+        
+        except json.JSONDecodeError as e:
+            print(f"Error parsing decision: {e}")
+            print("Falling back to 'params-not-provided' due to parsing issue.")
+            return "params-not-provided"
         

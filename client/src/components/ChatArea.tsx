@@ -4,6 +4,9 @@ import { RemoteRunnable } from '@langchain/core/runnables/remote';
 import ReactMarkdown from 'react-markdown';
 import { motion } from 'framer-motion';
 import gfm from 'remark-gfm';
+import InquiryComponent from './InquiryComponent'; // Assuming the InquiryComponent is located in the same directory
+import { Message } from '@/types/Messages'; // Import your Message type
+import { cn } from '@/lib/utils'; // Import the `cn` utility
 
 interface ChatAreaProps {
   userId: string;
@@ -12,23 +15,21 @@ interface ChatAreaProps {
 
 const ChatArea: React.FC<ChatAreaProps> = ({ userId, conversationId }) => {
   const [input, setInput] = useState('');
-  const [messages, setMessages] = useState<any[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Clear chat messages when conversationId changes
   useEffect(() => {
     if (!userId || !conversationId) {
-      setMessages([]); // Clear messages immediately when IDs are not available
+      setMessages([]);
       return;
     }
 
-    setMessages([]); // Clear messages before fetching new chat history
+    setMessages([]);
     loadChatHistory();
-  }, [userId, conversationId]); // Depend on userId and conversationId changes
+  }, [userId, conversationId]);
 
-  // Load chat history based on userId and conversationId
   const loadChatHistory = async () => {
-    if (!userId || !conversationId) return; // Ensure both IDs are set
+    if (!userId || !conversationId) return;
 
     try {
       const response = await fetch(`http://localhost:8000/conversations/${userId}/${conversationId}`, {
@@ -41,10 +42,11 @@ const ChatArea: React.FC<ChatAreaProps> = ({ userId, conversationId }) => {
       });
       if (response.ok) {
         const data = await response.json();
-        const formattedMessages = data.messages.map((item: any) => ({
+        const formattedMessages: Message[] = data.messages.map((item: any) => ({
           content: item.data.content,
           role: item.type,
           timestamp: item.timestamp,
+          inquiry: false,
         }));
         setMessages(formattedMessages.reverse());
       } else {
@@ -55,9 +57,9 @@ const ChatArea: React.FC<ChatAreaProps> = ({ userId, conversationId }) => {
     }
   };
 
-  // Handle sending messages
-  const handleSendMessage = async () => {
-    if (!input.trim()) return;
+  // Unified handleSubmit function
+  const handleSubmit = async (messageContent: string, userMessage: boolean = true) => {
+    if (!messageContent.trim()) return;
     setIsLoading(true);
 
     const remoteRunnable = new RemoteRunnable({
@@ -71,21 +73,37 @@ const ChatArea: React.FC<ChatAreaProps> = ({ userId, conversationId }) => {
       },
     });
 
-    const userMessage = { content: input, role: 'user' };
-    setMessages([...messages, userMessage]);
+    // Conditionally add the user's message to the chat
+    if (userMessage) {
+      const userMessageObject: Message = { content: messageContent, role: 'user', inquiry: false };
+      setMessages([...messages, userMessageObject]);
+    }
 
-    const _input = { input };
+    const _input = { input: messageContent };
 
     try {
       const stream = await remoteRunnable.stream(_input);
       for await (const chunk of stream) {
-        const typedChunk = chunk as { ending?: { generation?: string } };
+        const typedChunk = chunk as { ending?: { generation?: string }, params_inquiry?: { generation?: string } };
 
         if (typedChunk.ending) {
           const assistantMessageContent = typedChunk.ending.generation || '';
-          const assistantMessage = {
+          const assistantMessage: Message = {
             content: assistantMessageContent,
             role: 'assistant',
+            inquiry: false,
+          };
+          setMessages((prevMessages) => [...prevMessages, assistantMessage]);
+          setIsLoading(false);
+          break;
+        }
+
+        if (typedChunk.params_inquiry) {
+          const assistantMessageContent = typedChunk.params_inquiry.generation || '';
+          const assistantMessage: Message = {
+            content: assistantMessageContent,
+            role: 'assistant',
+            inquiry: true,
           };
           setMessages((prevMessages) => [...prevMessages, assistantMessage]);
           setIsLoading(false);
@@ -98,10 +116,10 @@ const ChatArea: React.FC<ChatAreaProps> = ({ userId, conversationId }) => {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleInputSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim()) return;
-    handleSendMessage();
+    handleSubmit(input); // Send the regular input message
     setInput(''); // Clear input field after submission
   };
 
@@ -123,37 +141,73 @@ const ChatArea: React.FC<ChatAreaProps> = ({ userId, conversationId }) => {
                 initial={{ x: m.role === 'user' ? 100 : -100, opacity: 0 }}
                 animate={{ x: 0, opacity: 1 }}
                 transition={{ duration: 0.3 }}
-                className={`${m.role === 'user' ? 'flex justify-end' : 'flex justify-start'} my-1`}
+                className={cn('my-1', {
+                  'flex justify-end': m.role === 'user',
+                  'flex justify-start': m.role !== 'user',
+                })}
               >
-                <div
-                  className={`max-w-3/4 px-4 py-2 rounded-lg ${
-                    m.role === 'user' ? 'bg-[#5138bb] text-[#edeaf7]' : 'bg-[#edeaf7] text-[#0f0e24]'
-                  }`}
-                >
-                  <ReactMarkdown
-                    remarkPlugins={[gfm]}
-                    components={{
-                      a: ({ node, ...props }) => (
-                        <a
-                          {...props}
-                          style={{ color: 'blue', wordWrap: 'break-word', padding: '2px' }}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        />
-                      ),
-                    }}
+                {/* Render InquiryComponent if message has inquiry: true */}
+                {m.inquiry ? (
+                  <InquiryComponent message={m.content} onSubmit={handleSubmit} />
+                ) : (
+                  <div
+                    className={cn(
+                      'max-w-full px-4 py-2 rounded-lg break-words whitespace-pre-wrap',
+                      {
+                        'bg-[#5138bb] text-[#edeaf7]': m.role === 'user',
+                        'bg-[#edeaf7] text-[#0f0e24]': m.role !== 'user',
+                      }
+                    )}
                   >
-                    {m.content}
-                  </ReactMarkdown>
-                </div>
+                   <ReactMarkdown
+                      remarkPlugins={[gfm]}
+                      components={{
+                        a: ({ node, ...props }) => (
+                          <a
+                            {...props}
+                            style={{
+                              color: 'blue',
+                              wordBreak: 'break-word',
+                              overflowWrap: 'break-word',  
+                              padding: '2px',
+                            }}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          />
+                        ),
+                        code: ({ node, className, children, ...props }) => {
+                          // Apply styles to code blocks to ensure wrapping
+                          return   (
+                            <pre
+                              style={{
+                                whiteSpace: 'pre-wrap', // Forces wrapping of preformatted text
+                                wordBreak: 'break-word', // Ensures long lines are broken
+                                overflowWrap: 'break-word', // Wrap words if necessary
+                                backgroundColor: '#f5f5f5',
+                                padding: '10px',
+                                borderRadius: '5px',
+                                overflowX: 'auto',
+                              }}
+                            >
+                              <code {...props}>
+                                {children}
+                              </code>
+                            </pre>
+                          );
+                        }
+                      }}
+                    >
+                      {m.content}
+                    </ReactMarkdown>
+
+                  </div>
+                )}
               </motion.div>
             ))
           : null}
         {isLoading && (
-          <motion.div
-            className="flex justify-start my-1"
-          >
-            <div className="max-w-3/4 px-4 py-2 rounded-lg bg-[#edeaf7] text-[#0f0e24]">
+          <motion.div className="flex justify-start my-1">
+            <div className="max-w-full px-4 py-2 rounded-lg bg-[#edeaf7] text-[#0f0e24] break-words">
               {'Loading...'.split('').map((letter, index) => (
                 <motion.span
                   key={index}
@@ -169,7 +223,7 @@ const ChatArea: React.FC<ChatAreaProps> = ({ userId, conversationId }) => {
           </motion.div>
         )}
       </div>
-      <form onSubmit={handleSubmit} className="">
+      <form onSubmit={handleInputSubmit} className="">
         <input
           type="text"
           value={input}
