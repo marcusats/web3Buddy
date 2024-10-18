@@ -111,7 +111,7 @@ class GraphNodes:
                 "You are Web3Buddy, a helpful assistant that provides detailed answers about Web3. "
                 "Always refer to the context from the previous conversation and the following retrieved documents. "
                 "Do not make up any information; if the documents do not have enough details, say you don't know. "
-                "You have access to tools, including 'fake_weather_api' to check the weather and a tool to 'generate_infura_data' information about Infura.\n\n"
+
                 f"Chat History:\n{chat_history}\n\n"
                 
                 f"Question: {input}\n\n"
@@ -150,7 +150,8 @@ class GraphNodes:
         improvedQuestion = state["input"]
      
         print(f"Improved Question: {improvedQuestion}")
-       
+        new_namespace = "infura-docs"
+        changed_retriever = self.retriever.set_namespace(new_namespace)
         infura_retriver = self.retriever.get_retriever()
         documents = infura_retriver.invoke(improvedQuestion)
         print("---RETRIEVED DOCUMENTS---")
