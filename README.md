@@ -1,5 +1,8 @@
 # Web3Buddy
 
+## Watch the [Demo Video](https://youtu.be/1xFhN8ED6Yc) to see Web3Buddy in action.
+
+
 Web3Buddy is an AI-driven chat assistant that helps users navigate the complexities of the Web3 ecosystem. By leveraging AI capabilities through Langraph, Web3Buddy provides real-time insights, answers to Web3-related queries, and guidance on navigating decentralized technologies. The frontend is developed using **Next.js**, while the backend is powered by **FastAPI**, creating a seamless and fast experience for the user.
 
 ## Features
