@@ -4,7 +4,7 @@ import { InquiryMessage } from '@/types/Messages';
 
 interface InquiryComponentProps {
   message: string;
-  onSubmit: (messageContent: string, userMessage: boolean) => void; // Add onSubmit prop
+  onSubmit: (messageContent: string, userMessage: boolean) => void;
 }
 
 const InquiryComponent: React.FC<InquiryComponentProps> = ({ message, onSubmit }) => {
@@ -45,7 +45,7 @@ const InquiryComponent: React.FC<InquiryComponentProps> = ({ message, onSubmit }
       animate={{ opacity: 1, y: 0 }} 
       transition={{ duration: 0.5, ease: 'easeOut' }}
     >
-      <div className="text-sm font-semibold mb-4">{parsedMessage.content}</div> {/* Smaller title text */}
+      <div className="text-sm font-semibold mb-4">{parsedMessage.content}</div>
       <div className="space-y-4">
         {Object.keys(parsedMessage.params).map((key, index) => (
           <motion.div
@@ -55,7 +55,7 @@ const InquiryComponent: React.FC<InquiryComponentProps> = ({ message, onSubmit }
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.1 }}
           >
-            <label htmlFor={key} className="text-xs font-medium mb-1"> {/* Smaller label text */}
+            <label htmlFor={key} className="text-xs font-medium mb-1">
               {key} ({parsedMessage.params[key]})
             </label>
 

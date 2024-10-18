@@ -23,7 +23,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ userId, conversationId }) => {
   const router = useRouter();
   const { address, status } = useAccount();
  
-
   const handleRetrieveSidebar = async () => {
     if (!address) {
       return;
@@ -50,7 +49,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ userId, conversationId }) => {
           };
         });
 
-        setItems(dbChatHistory.reverse()); // Reverse the list of conversations
+        setItems(dbChatHistory.reverse());
       } else {
         console.error("Error retrieving conversation keys");
       }

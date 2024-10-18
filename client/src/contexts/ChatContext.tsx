@@ -10,7 +10,7 @@ interface Conversation {
 interface ChatContextProps {
   userId: string | null;
   conversationId: string | null;
-  conversations: Conversation[];  // New state for conversations
+  conversations: Conversation[];
   setUserId: (id: string) => void;
   setConversationId: (id: string) => void;
   addConversation: (userId: string, conversationId: string) => void;
@@ -21,7 +21,7 @@ const ChatContext = createContext<ChatContextProps | undefined>(undefined);
 export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [userId, setUserIdState] = useState<string | null>(null);
   const [conversationId, setConversationIdState] = useState<string | null>(null);
-  const [conversations, setConversations] = useState<Conversation[]>([]);  // State to store conversations
+  const [conversations, setConversations] = useState<Conversation[]>([]);
 
   const setUserId = (id: string) => {
     setUserIdState(id);
@@ -31,7 +31,6 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setConversationIdState(id);
   };
 
-  // Function to add a new conversation
   const addConversation = (userId: string, conversationId: string) => {
     setConversations((prevConversations) => [
       ...prevConversations,
@@ -44,7 +43,7 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       value={{
         userId,
         conversationId,
-        conversations,  // Expose conversations
+        conversations,
         setUserId,
         setConversationId,
         addConversation,

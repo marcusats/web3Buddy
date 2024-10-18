@@ -6,7 +6,6 @@ import { MotionProps, motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "./button";
 
-
 interface SidebarNavProps extends React.HTMLAttributes<HTMLElement> {
   items: {
     href: string;
@@ -17,17 +16,16 @@ interface SidebarNavProps extends React.HTMLAttributes<HTMLElement> {
 export function SidebarNav({ className, items, ...props }: SidebarNavProps) {
   const pathname = usePathname();
 
-  // Animation variants for staggering the items
   const itemVariants = {
-    hidden: { opacity: 0, x: -20 }, // Hidden state
-    visible: { opacity: 1, x: 0 },  // Visible state
+    hidden: { opacity: 0, x: -20 },
+    visible: { opacity: 1, x: 0 },
   };
 
   return (
     <motion.nav
       initial="hidden"
       animate="visible"
-      transition={{ staggerChildren: 0.2 }} // Staggering animation between items
+      transition={{ staggerChildren: 0.2 }}
       className={cn("flex lg:flex-col lg:space-x-0 lg:space-y-1", className)}
       {...props as MotionProps}
     >

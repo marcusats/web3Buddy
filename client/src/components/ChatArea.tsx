@@ -4,9 +4,9 @@ import { RemoteRunnable } from '@langchain/core/runnables/remote';
 import ReactMarkdown from 'react-markdown';
 import { motion } from 'framer-motion';
 import gfm from 'remark-gfm';
-import InquiryComponent from './InquiryComponent'; // Assuming the InquiryComponent is located in the same directory
-import { Message } from '@/types/Messages'; // Import your Message type
-import { cn } from '@/lib/utils'; // Import the `cn` utility
+import InquiryComponent from './InquiryComponent';
+import { Message } from '@/types/Messages';
+import { cn } from '@/lib/utils';
 
 interface ChatAreaProps {
   userId: string;
@@ -57,7 +57,6 @@ const ChatArea: React.FC<ChatAreaProps> = ({ userId, conversationId }) => {
     }
   };
 
-  // Unified handleSubmit function
   const handleSubmit = async (messageContent: string, userMessage: boolean = true) => {
     if (!messageContent.trim()) return;
     setIsLoading(true);
@@ -73,7 +72,6 @@ const ChatArea: React.FC<ChatAreaProps> = ({ userId, conversationId }) => {
       },
     });
 
-    // Conditionally add the user's message to the chat
     if (userMessage) {
       const userMessageObject: Message = { content: messageContent, role: 'user', inquiry: false };
       setMessages([...messages, userMessageObject]);
@@ -119,8 +117,8 @@ const ChatArea: React.FC<ChatAreaProps> = ({ userId, conversationId }) => {
   const handleInputSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim()) return;
-    handleSubmit(input); // Send the regular input message
-    setInput(''); // Clear input field after submission
+    handleSubmit(input);
+    setInput('');
   };
 
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -146,7 +144,6 @@ const ChatArea: React.FC<ChatAreaProps> = ({ userId, conversationId }) => {
                   'flex justify-start': m.role !== 'user',
                 })}
               >
-                {/* Render InquiryComponent if message has inquiry: true */}
                 {m.inquiry ? (
                   <InquiryComponent message={m.content} onSubmit={handleSubmit} />
                 ) : (
@@ -176,13 +173,12 @@ const ChatArea: React.FC<ChatAreaProps> = ({ userId, conversationId }) => {
                           />
                         ),
                         code: ({ node, className, children, ...props }) => {
-                          // Apply styles to code blocks to ensure wrapping
                           return   (
                             <pre
                               style={{
-                                whiteSpace: 'pre-wrap', // Forces wrapping of preformatted text
-                                wordBreak: 'break-word', // Ensures long lines are broken
-                                overflowWrap: 'break-word', // Wrap words if necessary
+                                whiteSpace: 'pre-wrap',
+                                wordBreak: 'break-word',
+                                overflowWrap: 'break-word',
                                 backgroundColor: '#f5f5f5',
                                 padding: '10px',
                                 borderRadius: '5px',

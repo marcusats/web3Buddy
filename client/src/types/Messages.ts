@@ -10,7 +10,7 @@ type Message ={
     content: string;
     role: 'user' | 'assistant';
     timestamp?: string;
-    inquiry: boolean; // To track if it's an inquiry message
+    inquiry: boolean;  
 };
 
 export type {InquiryMessage, Message};

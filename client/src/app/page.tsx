@@ -64,7 +64,7 @@ export default function HomePage() {
           </p>
         </motion.header>
 
-        {/* Connect Button Animation */}
+
         <motion.div
           className="flex flex-col items-center"
           initial={{ opacity: 0, scale: 0.8 }}

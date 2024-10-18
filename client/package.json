@@ -1,5 +1,5 @@
 {
-  "name": "web3Budy",
+  "name": "web3-buddy",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -40,7 +40,7 @@
   },
   "devDependencies": {
     "@types/node": "^20",
-    "@types/react": "^18",
+    "@types/react": "^18.3.11",
     "@types/react-dom": "^18",
     "autoprefixer": "^10.0.1",
     "eslint": "^8",
