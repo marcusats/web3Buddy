@@ -107,7 +107,7 @@ UPSTASH_REDIS_REST_TOKEN="your-upstash-redis-token"
 
 ## Workflow Architecture
 
-This section will provide an overview of the architecture and the workflow of the entire app, detailing the nodes, edges, and their functionalities. Below, we'll break down each component and explain how they fit into the overall system.
+This section will provide an overview of the architecture and the workflow of the entire app, detailing the nodes, edges, and their functionalities. Additionally, it highlights the use of Retrieval-Augmented Generation (RAG) to improve the generation process.It is a cost-effective approach to improving LLM output so it remains relevant, accurate, and useful in various contexts. Below, we'll break down each component and explain how they fit into the overall system.
 
 ### Nodes
 Each node in the workflow represents a specific action or decision-making process that the app performs. Let's go through each node in the order of the workflow.
