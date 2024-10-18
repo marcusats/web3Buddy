@@ -11,10 +11,9 @@ if input_text:
             app = RemoteRunnable("http://localhost:8000/web3buddy_chat/", headers={"user_id": "123", "conv_id": "123"})
             for output in app.stream({"input": input_text}):
                 for key, value in output.items():
-                    # Node
+      
                     pprint(f"Node '{key}':")
-                    # Optional: print full state at each node
-                    # pprint.pprint(value["keys"], indent=2, width=80, depth=None)
+                     
                 pprint("\n---\n")
             output = value['generation']  
             st.write(output)

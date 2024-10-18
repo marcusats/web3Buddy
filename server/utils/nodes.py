@@ -41,7 +41,6 @@ class GraphNodes:
         self.userId = userId
         self.conv_id = conv_id 
 
-
     def rewrite_question(self, state):
         """
         Rewrites the input question to optimize it for vector store retrieval and tool usage.
@@ -55,8 +54,6 @@ class GraphNodes:
         print("---REWRITE QUESTION---")
         question = state["input"]
         
-        
-        
         self.saveMessage(self.userId, self.conv_id, question, "user")
         chat_history = state.get("chat_history", [])
         print("----------CHAT HISTORY----------")
@@ -67,7 +64,6 @@ class GraphNodes:
         if not chat_history:
             chat_history = self.get_all_messages(self.userId, self.conv_id)
 
-        # Create a prompt for rewriting the question
         rewrite_prompt = PromptTemplate(
             template="""
             <|begin_of_text|><|start_header_id|>system<|end_header_id|>
@@ -87,18 +83,13 @@ class GraphNodes:
             input_variables=["question"]
         )
 
-        # Invoke the question rewriter
-        
         question_rewriter =  rewrite_prompt | self.llm | StrOutputParser()
         rewritten_question = question_rewriter.invoke({"question": question})
         print(f"Rewritten Question: {rewritten_question}")
 
-        # Update the state with the rewritten question
-       # Store the rewritten question as 'generation'
-
         return {
             "chat_history": chat_history,
-            "input": question,  # Update input with rewritten question
+            "input": question,
             "documents": [],
             "generation": question,
             "userId": self.userId,
@@ -128,29 +119,16 @@ class GraphNodes:
 
         system_prompt = create_system_prompt(chat_history, question)
         
-        
-        
-        # Combine the chat prompt with the LLM and output parser
         response = self.llm.invoke(system_prompt)
 
-        # Ensure the response is properly serialized into a string
-        # if isinstance(response, dict):
-        #      # Convert dictionary response to JSON string for serialization
-        # elif not isinstance(response, str):
-        #     response = str(response)  # Convert to string if not already
-        
         print("---CHAT RESPONSE---")
         print( response)
-        # Append the question and AI response to the chat history
         chat_history.append(HumanMessage(content=question))
-        chat_history.append(response)  # Add the serialized string response
+        chat_history.append(response)
 
-        # Store the response as 'generation'
-        state['generation'] = response  # Store serialized response in the 'generation' key
-        state['chat_history'] = chat_history  # Update chat history
+        state['generation'] = response
+        state['chat_history'] = chat_history
         
-        
-
         return {
             "chat_history": chat_history,
             "input": question,
@@ -171,7 +149,6 @@ class GraphNodes:
         print("---RETRIEVE---")
         improvedQuestion = state["input"]
      
-        # Retrieval
         print(f"Improved Question: {improvedQuestion}")
        
         infura_retriver = self.retriever.get_retriever()
@@ -193,7 +170,6 @@ class GraphNodes:
         print("---RETRIEVE---")
         improvedQuestion = state["input"]
      
-        # Retrieval
         print(f"Improved Question: {improvedQuestion}")
 
         new_namespace = "solidity-docs"
@@ -203,7 +179,6 @@ class GraphNodes:
         print("---RETRIEVED DOCUMENTS---")
         print(documents)
         return {"documents": documents, "input": improvedQuestion, "vector_store_namespace": new_namespace}
-
 
     def generate(self, state):
         """
@@ -219,7 +194,6 @@ class GraphNodes:
         question = state["input"]
         documents = state["documents"]
 
-        # RAG generation
         generation = self.generate_chain.invoke({"context": documents, "input": question})
         return {"documents": documents, "input": question, "generation": generation}
 
@@ -240,7 +214,6 @@ class GraphNodes:
         print(f"Question: {question}")
         print(f"Documents: {documents}")
 
-        # Score each document
         filtered_docs = []
         for d in documents:
             score = self.retrieval_grader.invoke({"input": question, "document": d.page_content, "rewrited_question":generation } )
@@ -269,7 +242,6 @@ class GraphNodes:
         documents = state["documents"]
         print("-----transform query-----")
 
-        # Re-write question
         better_question = self.question_rewriter.invoke({"question": question})
         print(f"Better Question: {better_question}")
         return {"documents": documents, "input": question, "generation": better_question}
@@ -287,11 +259,9 @@ class GraphNodes:
         """
         print("---TRANSFORM EXECUTION---")
         
-        # Retrieve the question (input) and the interpreted answer (generation)
         question = state["input"]
         generation = state["generation"]
         
-        # Define a prompt that extracts the cURL command
         transform_prompt = PromptTemplate(
             template="""
             <|begin_of_text|><|start_header_id|>system<|end_header_id|>
@@ -317,23 +287,20 @@ class GraphNodes:
             input_variables=["generation"]
         )
         
-        # Invoke the transformation prompt to extract the cURL command
         extract_command = transform_prompt | self.llm | StrOutputParser()
         curl_command = extract_command.invoke({"generation": generation})
 
         print(f"Extracted cURL Command: {curl_command}")
 
-        # Ensure that the extracted cURL command has no Markdown or unnecessary info
         curl_command_cleaned = curl_command.replace("```bash", "").replace("```", "").strip()
 
-        # Update the state with the cleaned cURL command
-        state["generation"] = curl_command_cleaned  # Store the cleaned cURL command as 'generation'
+        state["generation"] = curl_command_cleaned
 
         return {
             "chat_history": state.get("chat_history", []),
-            "input": question,  # Keep the original input question
+            "input": question,
             "documents": state.get("documents", []),
-            "generation": curl_command_cleaned  # Store the cleaned cURL command
+            "generation": curl_command_cleaned
         }
     
     def execution(self, state):
@@ -349,44 +316,37 @@ class GraphNodes:
         """
         print("---EXECUTING CURL COMMAND---")
         
-        # Retrieve the cURL command from the generation
         curl_command = state["generation"]
 
-        # Replace the placeholder {infuraKey} with the actual Infura key
         curl_command_with_key = curl_command.replace("{infuraKey}", infura_key)
 
-        # Print the command to be executed for debugging
         print(f"Executing: {curl_command_with_key}")
 
         print(f"user id: {state['userId']}")
-        # Define max retries and delay between retries
         max_retries = 3
-        retry_delay = 2  # seconds
+        retry_delay = 2
 
         for attempt in range(max_retries):
             try:
-                # Execute the command using subprocess with a timeout of 10 seconds
                 result = subprocess.run(curl_command_with_key, shell=True, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=10)
                 
-                # Capture the output
                 command_output = result.stdout.decode('utf-8')
                 print(f"Command Output: {command_output}")
                 
-                # Update the state with the output of the command
                 state["generation"] = command_output
 
                 return {
                     "chat_history": state.get("chat_history", []),
-                    "input": state["input"],  # Keep the original input question
+                    "input": state["input"],
                     "documents": state.get("documents", []),
-                    "generation": command_output  # Store the output in the generation key
+                    "generation": command_output
                 }
             
             except subprocess.TimeoutExpired:
                 print(f"Attempt {attempt+1}: Timeout occurred while executing the command.")
                 if attempt < max_retries - 1:
                     print(f"Retrying in {retry_delay} seconds...")
-                    time.sleep(retry_delay)  # Wait before retrying
+                    time.sleep(retry_delay)
                 else:
                     print("Max retries reached. Service unavailable.")
                     error_message = f"Service for this {curl_command_with_key} is currently unavailable due to a timeout."
@@ -397,7 +357,7 @@ class GraphNodes:
                 print(f"Attempt {attempt+1}: Error executing cURL command: {error_message}")
                 if attempt < max_retries - 1:
                     print(f"Retrying in {retry_delay} seconds...")
-                    time.sleep(retry_delay)  # Wait before retrying
+                    time.sleep(retry_delay)
                 else:
                     print("Max retries reached. Service unavailable.")
                     error_message = f"Service for this {curl_command_with_key} is currently unavailable."
@@ -416,14 +376,11 @@ class GraphNodes:
         """
         print(f"Returning error: {error_message}")
         
-        # Update the state with the error message
-        
-
         return {
             "chat_history": state.get("chat_history", []),
-            "input": state["input"],  # Keep the original input question
+            "input": state["input"],
             "documents": state.get("documents", []),
-            "generation": error_message  # Store the error message in the generation key
+            "generation": error_message
         }
 
     def path_to_execution(self, state):
@@ -445,8 +402,6 @@ class GraphNodes:
         
         }
     
-
-    
     def execution_interpreter(self, state):
         """
         Interprets the output of the cURL command execution and provides a concise response.
@@ -460,12 +415,10 @@ class GraphNodes:
         """
         print("---Interpreting Execution Output---")
         
-        # Retrieve the output of the cURL command execution
         command_output = state["generation"]
         documents = state.get("documents", [])
         input_question = state["input"]
 
-        # Define a prompt that interprets the command output concisely and converts hex to human-readable numbers
         interpret_prompt = PromptTemplate(
             template="""
             <|begin_of_text|><|start_header_id|>system<|end_header_id|>
@@ -487,10 +440,9 @@ class GraphNodes:
             <|eot_id|>
             <|start_header_id|>assistant<|end_header_id|>
             """,
-            input_variables=["generation", "documents", "input"]  # Include the input question for context
+            input_variables=["generation", "documents", "input"]
         )
         
-        # Invoke the interpretation prompt to analyze the command output and handle hex conversions
         interpretation = interpret_prompt | self.llm | StrOutputParser()
         interpretation_output = interpretation.invoke({"generation": command_output, "documents": documents, "input": input_question})
 
@@ -536,7 +488,6 @@ class GraphNodes:
         documents = state.get("documents", [])
         input_question = state["input"]
 
-        # Define a prompt that interprets the cURL command, identifies parameters, and provides a structured response
         interpret_prompt = PromptTemplate(
             template="""
             <|begin_of_text|><|start_header_id|>system<|end_header_id|>
@@ -577,10 +528,8 @@ class GraphNodes:
             input_variables=["generation", "documents", "input_question"]
         )
 
-        # Invoke the interpretation prompt to analyze the cURL command and extract the needed parameters
         interpretation = interpret_prompt | self.llm | StrOutputParser()
 
-        # Invoke the model with the command, documents, and input question to get the parameter analysis
         interpretation_output = interpretation.invoke({
             "generation": command_output, 
             "documents": documents, 
@@ -592,7 +541,7 @@ class GraphNodes:
             "chat_history": state.get("chat_history", []),
             "input": state.get("input"),
             "documents": state.get("documents", []),
-            "generation": interpretation_output,  # This will return the structured output with param names and types
+            "generation": interpretation_output,
         }
 
     def ending(self, state):
@@ -613,8 +562,6 @@ class GraphNodes:
         print(f"chat_history: {state['chat_history']}")
         print(f"input: {state['input']}")
 
-        
-     
         self.saveMessage(state["userId"], state["convId"], state["generation"], "assistant")
 
         return {
@@ -634,20 +581,17 @@ class GraphNodes:
             str: The updated cURL command ready for execution.
         """
         
-        command_output = state["generation"]  # cURL command template
-        input_question = state["input"]  # Input question, which includes params
-        documents = state.get("documents", [])  # Any supporting documents for context
+        command_output = state["generation"]
+        input_question = state["input"]
+        documents = state.get("documents", [])
 
-        # Define the prompt to add missing parameters into the command
         add_params_prompt = PromptTemplate(
             template="""
             <|begin_of_text|><|start_header_id|>system<|end_header_id|>
             Your task is to insert the provided parameters into the cURL command. The command has placeholders or an empty "params" array, 
             and your task is to replace those with the actual values provided within the input.
 
-
             RETURN THE PLAIN COMMAND, NO MARKDOWN  like this ```bash ```
-
 
             Follow these steps:
             1. Identify where the "params" array is located in the cURL command.
@@ -686,12 +630,11 @@ class GraphNodes:
             input_variables=["generation", "input", "documents"]
         )
         
-        # Invoke the prompt to add params to the command
         add_params_interpreter = add_params_prompt | self.llm | StrOutputParser()
         updated_curl_command = add_params_interpreter.invoke({
             "generation": command_output, 
-            "input": input_question,  # Pass the input that contains the params
-            "documents": documents  # Pass documents for any additional context
+            "input": input_question,
+            "documents": documents
         })
         
         return {

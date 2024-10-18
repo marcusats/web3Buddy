@@ -8,8 +8,6 @@ class ChatHistoryManager:
         Initialize the Redis client using environment variables.
         Raises an error if the required environment variables are not set.
         """
-       
-
         if not redis_url or not redis_token:
             raise ValueError("UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN must be set in the environment")
 
@@ -29,7 +27,7 @@ class ChatHistoryManager:
             bool: True if the message was saved successfully, False otherwise.
         """
         try:
-            timestamp = datetime.now().isoformat()  # Unique timestamp
+            timestamp = datetime.now().isoformat()
             message_for_redis = json.dumps({
                 "type": message_type,
                 "data": {
@@ -38,10 +36,8 @@ class ChatHistoryManager:
                 "timestamp": timestamp
             })
             
-            # Combine user_id and conversation_id to create a unique Redis key
             redis_key = f"{user_id}:{conversation_id}"
             
-            # Save the message to the Redis list for the specific conversation
             self.redis.lpush(redis_key, message_for_redis)
             
             return True
@@ -60,7 +56,6 @@ class ChatHistoryManager:
             list: A list of conversation keys (e.g., {user_id}:{conversation_id}-*).
         """
         try:
-             
             conversation_keys = self.redis.keys(f"{user_id}:*")
             return conversation_keys
         except Exception as e:
@@ -79,10 +74,8 @@ class ChatHistoryManager:
             list: A list of all messages for the specified conversation.
         """
         try:
-            # Combine user_id and conversation_id to create a unique Redis key
             redis_key = f"{user_id}:{conversation_id}"
             
-            # Retrieve all messages for the given conversation key
             messages = self.redis.lrange(redis_key, 0, -1)
             
             return [json.loads(msg) for msg in messages]

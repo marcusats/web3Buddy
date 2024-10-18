@@ -28,10 +28,9 @@ class GraderUtils:
             <|eot_id|>
             <|start_header_id|>assistant<|end_header_id|>
             """,
-            input_variables=["document", "input", "rewrited_question"],  # No chat_history here
+            input_variables=["document", "input", "rewrited_question"],
         )
 
-        # Create the retriever chain
         retriever_grader = grade_prompt | self.model | JsonOutputParser()
 
         return retriever_grader
@@ -70,9 +69,6 @@ class GraderUtils:
         hallucination_grader = hallucination_prompt | self.model | JsonOutputParser()
 
         return hallucination_grader
-
-
-
 
     def create_code_evaluator(self):
         """
@@ -149,7 +145,6 @@ class GraderUtils:
 
         return action_decision
     
-    
     def create_execution_evaluator(self):
         """
         Evaluates the user's question to decide how confident the system is that a blockchain command (via curl) needs to be executed.
@@ -199,7 +194,6 @@ class GraderUtils:
             input_variables=["question", "generation", "documents"],
         )
 
-        # Use the template with the model to decide the confidence score based on the input question, generation, and documents
         execution_confidence = execution_prompt | self.model | StrOutputParser()
 
         return execution_confidence
@@ -301,10 +295,6 @@ class GraderUtils:
             - The "params" array is **not empty**, which indicates that parameters are likely required.
             - The documentation confirms that this method requires `hash` and `transaction details flag` parameters, so the confidence score should be 1.0 (indicating high likelihood that parameters are needed).
 
-            
-
-            
-
             <|eot_id|>
             <|start_header_id|>context<|end_header_id|>
             cURL Command: {curl_command}
@@ -321,7 +311,6 @@ class GraderUtils:
             input_variables=["question", "curl_command", "documents"],
         )
 
-        # Use the template with the model to decide the confidence score based on the method, params array, and documents
         params_confidence = params_prompt | self.model | StrOutputParser()
 
         return params_confidence
@@ -336,7 +325,6 @@ class GraderUtils:
             A JSON object with a 'score' indicating confidence from 0 to 1.
         """
 
-        # Define the prompt to check for the presence of parameters in the input
         params_prompt = PromptTemplate(
             template="""
                     <|begin_of_text|><|start_header_id|>system<|end_header_id|>
@@ -388,7 +376,6 @@ class GraderUtils:
             input_variables=["input"]
         )
 
-        # Use the template with the model to check for the likelihood of parameters being provided
         params_confidence = params_prompt | self.model | StrOutputParser()
 
         return params_confidence
